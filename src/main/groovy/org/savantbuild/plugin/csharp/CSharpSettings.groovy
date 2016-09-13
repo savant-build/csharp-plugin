@@ -25,9 +25,9 @@ class CSharpSettings {
   String compilerExecutable = "mcs"
 
   /**
-   * Additional compiler arguments. This are included when javac is invoked. Defaults to {@code "-g"}.
+   * Additional compiler arguments. This are included when the compiler is invoked. Defaults to {@code "-debug"}.
    */
-  String compilerArguments = "-g"
+  String compilerArguments = "-debug"
 
   /**
    * The type parameter that is passed to the compiler.

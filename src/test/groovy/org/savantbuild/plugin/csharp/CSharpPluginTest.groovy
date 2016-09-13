@@ -86,12 +86,15 @@ class CSharpPluginTest {
     plugin.settings.sdkVersion = "2.6"
     plugin.settings.libraryDirectories.add("lib")
 
+    println "Clean"
     plugin.clean()
     assertFalse(Files.isDirectory(projectDir.resolve("test-project/build")))
 
+    println "Compile main"
     plugin.compileMain()
     assertTrue(Files.isRegularFile(projectDir.resolve("test-project/build/dlls/test-project.dll")))
 
+    println "Compile test"
     plugin.compileTest()
     assertTrue(Files.isRegularFile(projectDir.resolve("test-project/build/dlls/test-project-test.dll")))
 

@@ -173,10 +173,7 @@ class CSharpPlugin extends BaseGroovyPlugin {
     output.debugln("Looking for all files to compile in [%s]", resolvedSourceDir)
 
     Predicate<Path> filter = FileTools.extensionFilter(".cs")
-    List<Path> filesToCompile
-    Files.walk(resolvedSourceDir).withCloseable { s ->
-      filesToCompile = s.filter(filter).collect(Collectors.toList())
-    }
+    List<Path> filesToCompile = Files.walk(resolvedSourceDir).filter(filter).collect(Collectors.toList())
     if (filesToCompile == null || filesToCompile.isEmpty()) {
       output.infoln("Skipping compile for source directory [%s]. No files need compiling", sourceDirectory)
       return
@@ -207,9 +204,7 @@ class CSharpPlugin extends BaseGroovyPlugin {
           return
         }
 
-        Files.list(dir).withCloseable { s ->
-          s.filter(FileTools.extensionFilter(".dll")).forEach { file -> additionalDLLs.add(file.toAbsolutePath()) }
-        }
+        Files.list(dir).filter(FileTools.extensionFilter(".dll")).forEach { file -> additionalDLLs.add(file.toAbsolutePath()) }
       }
     }
 
@@ -236,9 +231,7 @@ class CSharpPlugin extends BaseGroovyPlugin {
     }
 
     StringBuilder arguments = new StringBuilder()
-    Files.list(dir).withCloseable { s ->
-      s.forEach { file -> arguments.append(" -resource:").append(file.toAbsolutePath()) }
-    }
+    Files.list(dir).forEach { file -> arguments.append(" -resource:").append(file.toAbsolutePath()) }
     return arguments;
   }
 
