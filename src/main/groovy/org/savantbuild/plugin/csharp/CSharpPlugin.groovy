@@ -172,16 +172,21 @@ class CSharpPlugin extends BaseGroovyPlugin {
 
     output.debugln("Looking for all files to compile in [%s]", resolvedSourceDir)
 
-    Predicate<Path> filter = FileTools.extensionFilter(".cs")
-    List<Path> filesToCompile = Files.walk(resolvedSourceDir).filter(filter).collect(Collectors.toList())
-    if (filesToCompile == null || filesToCompile.isEmpty()) {
-      output.infoln("Skipping compile for source directory [%s]. No files need compiling", sourceDirectory)
-      return
+    if (Files.isRegularFile(resolvedDLL)) {
+      Predicate<Path> filter = FileTools.extensionFilter(".cs")
+      long filesToCompile = Files.walk(resolvedSourceDir)
+          .filter(filter)
+          .filter({ p -> Files.getLastModifiedTime(p) > Files.getLastModifiedTime(resolvedDLL) })
+          .count()
+      if (filesToCompile == 0) {
+        output.infoln("Skipping compile for source directory [%s]. No files need compiling", sourceDirectory)
+        return
+      }
+
+      output.infoln("Compiling [${filesToCompile}] C# classes from [${sourceDirectory}]")
     }
 
-    output.infoln("Compiling [${filesToCompile.size()}] C# classes from [${sourceDirectory}]")
-
-    String command = "${compilerPath} ${settings.languageVersion != null ? "-langversion:${settings.languageVersion}" : ""} ${settings.compilerArguments} ${libraryArguments(dependencies, settings.libraryDirectories, additionalLibraries)} ${resourceArguments(resourceDirectory)} -t:${settings.compilerType} -out:${resolvedDLL} ${filesToCompile.join(" ")}"
+    String command = "${compilerPath} ${settings.additionalReferences.empty ? "" : "-r:${settings.additionalReferences.join(" -r:")}"} ${settings.languageVersion != null ? "-langversion:${settings.languageVersion}" : ""} ${settings.compilerArguments} ${libraryArguments(dependencies, settings.libraryDirectories, additionalLibraries)} ${resourceArguments(resourceDirectory)} -t:${settings.compilerType} -out:${dllDirectory.resolve(dllName)} -recurse:${sourceDirectory}/*.cs"
     output.debugln("Executing compiler command [%s]", command)
 
     Files.createDirectories(resolvedDLLDir)
@@ -215,8 +220,7 @@ class CSharpPlugin extends BaseGroovyPlugin {
     }
 
     StringBuilder arguments = new StringBuilder()
-    classpath.paths.each { p -> arguments.append(" -lib:").append(p.getParent()) }
-    classpath.paths.each { p -> arguments.append(" -r:").append(p.getFileName()) }
+    classpath.paths.each { p -> arguments.append(" -r:").append(p) }
     return arguments;
   }
 

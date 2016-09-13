@@ -20,6 +20,11 @@ package org.savantbuild.plugin.csharp
  */
 class CSharpSettings {
   /**
+   * A list of additional references to include when compiling.
+   */
+  List<String> additionalReferences = []
+
+  /**
    * The name of the compiler executable. This defaults to <code>mcs</code> because we assume you are using Mono.
    */
   String compilerExecutable = "mcs"

@@ -1,4 +1,5 @@
-using System.Web;
+using System;
+using System.Net;
 using NLog;
 
 namespace Org.SavantBuild.Test
@@ -8,5 +9,10 @@ namespace Org.SavantBuild.Test
     protected static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
     protected HttpWebRequest request;
+
+    public void testable()
+    {
+      Console.WriteLine("Hello world");
+    }
   }
 }

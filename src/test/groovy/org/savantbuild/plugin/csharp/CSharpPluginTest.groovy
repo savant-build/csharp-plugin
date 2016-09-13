@@ -71,7 +71,7 @@ class CSharpPluginTest {
     project.version = new Version("1.0")
     project.licenses.put(License.ApacheV2_0, null)
 
-    project.dependencies = new Dependencies(new DependencyGroup("test-compile", false, new Artifact("org.nunit:nunit:2.6.3:dll", false)))
+    project.dependencies = new Dependencies(new DependencyGroup("test-compile", false, new Artifact("org.nunit:nunit.framework:2.6.3:dll", false)))
     project.workflow = new Workflow(
         new FetchWorkflow(output,
             new CacheProcess(output, projectDir.resolve("build/cache").toString()),
@@ -82,21 +82,27 @@ class CSharpPluginTest {
         )
     )
 
-    CSharpPlugin plugin = new CSharpPlugin(project, new RuntimeConfiguration(), output)
-    plugin.settings.sdkVersion = "2.6"
-    plugin.settings.libraryDirectories.add("lib")
+    try {
+      CSharpPlugin plugin = new CSharpPlugin(project, new RuntimeConfiguration(), output)
+      plugin.settings.sdkVersion = "2.6"
+      plugin.settings.libraryDirectories.add("lib")
+      plugin.settings.additionalReferences << "System.Web"
+      plugin.settings.compilerExecutable = "gmcs"
 
-    println "Clean"
-    plugin.clean()
-    assertFalse(Files.isDirectory(projectDir.resolve("test-project/build")))
+      println "Clean"
+      plugin.clean()
+      assertFalse(Files.isDirectory(projectDir.resolve("test-project/build")))
 
-    println "Compile main"
-    plugin.compileMain()
-    assertTrue(Files.isRegularFile(projectDir.resolve("test-project/build/dlls/test-project.dll")))
+      println "Compile main"
+      plugin.compileMain()
+      assertTrue(Files.isRegularFile(projectDir.resolve("test-project/build/dlls/test-project.dll")))
 
-    println "Compile test"
-    plugin.compileTest()
-    assertTrue(Files.isRegularFile(projectDir.resolve("test-project/build/dlls/test-project-test.dll")))
+      println "Compile test"
+      plugin.compileTest()
+      assertTrue(Files.isRegularFile(projectDir.resolve("test-project/build/dlls/test-project-test.dll")))
+    } catch (e) {
+      e.printStackTrace()
+    }
 
 //    plugin.document()
 //    assertTrue(Files.isRegularFile(projectDir.resolve("test-project/build/doc/index.html")))
