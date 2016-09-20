@@ -30,7 +30,12 @@ class CSharpLayout {
   /**
    * The documentation directory. Defaults to {@code build/doc}.
    */
-  Path docDirectory = buildDirectory.resolve("doc")
+  Path docDirectory = Paths.get("src/main/docs")
+
+  /**
+   * The documentation directory. Defaults to {@code build/doc}.
+   */
+  Path docExportDirectory = buildDirectory.resolve("docs")
 
   /**
    * The DLL build directory. Defaults to {@code build/dlls}.

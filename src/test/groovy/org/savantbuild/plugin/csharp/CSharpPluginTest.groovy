@@ -34,6 +34,7 @@ import org.savantbuild.io.FileTools
 import org.savantbuild.output.Output
 import org.savantbuild.output.SystemOutOutput
 import org.savantbuild.runtime.RuntimeConfiguration
+import org.testng.annotations.BeforeMethod
 import org.testng.annotations.BeforeSuite
 import org.testng.annotations.Test
 
@@ -48,6 +49,10 @@ import static org.testng.Assert.assertTrue
 class CSharpPluginTest {
   public static Path projectDir
 
+  public Output output
+
+  public Project project
+
   @BeforeSuite
   public void beforeSuite() {
     println "Setup"
@@ -57,15 +62,14 @@ class CSharpPluginTest {
     }
   }
 
-  @Test
-  public void all() throws Exception {
-    println "Start"
+  @BeforeMethod
+  public void beforeMethod() {
     FileTools.prune(projectDir.resolve("build/cache"))
 
-    Output output = new SystemOutOutput(true)
+    output = new SystemOutOutput(true)
     output.enableDebug()
 
-    Project project = new Project(projectDir.resolve("test-project"), output)
+    project = new Project(projectDir.resolve("test-project"), output)
     project.group = "org.savantbuild.test"
     project.name = "test-project"
     project.version = new Version("1.0")
@@ -81,30 +85,56 @@ class CSharpPluginTest {
             new CacheProcess(output, projectDir.resolve("build/cache").toString())
         )
     )
+  }
 
-    try {
-      CSharpPlugin plugin = new CSharpPlugin(project, new RuntimeConfiguration(), output)
-      plugin.settings.sdkVersion = "2.6"
-      plugin.settings.libraryDirectories.add("lib")
-      plugin.settings.additionalReferences << "System.Web"
-      plugin.settings.compilerExecutable = "gmcs"
+  @Test
+  public void all() throws Exception {
+    CSharpPlugin plugin = new CSharpPlugin(project, new RuntimeConfiguration(), output)
+    plugin.settings.sdkVersion = "2.0"
+    plugin.settings.references = ["lib/nlog-2.1.0.dll", "System.Web"]
+    plugin.settings.compilerExecutable = "gmcs"
+    plugin.layout.docDirectory = Paths.get("build/docs")
+    plugin.layout.docExportDirectory = Paths.get("build/docs-export")
 
-      println "Clean"
-      plugin.clean()
-      assertFalse(Files.isDirectory(projectDir.resolve("test-project/build")))
+    plugin.clean()
+    assertFalse(Files.isDirectory(projectDir.resolve("test-project/build")))
 
-      println "Compile main"
-      plugin.compileMain()
-      assertTrue(Files.isRegularFile(projectDir.resolve("test-project/build/dlls/test-project.dll")))
+    plugin.compileMain()
+    assertTrue(Files.isRegularFile(projectDir.resolve("test-project/build/dlls/test-project.dll")))
 
-      println "Compile test"
-      plugin.compileTest()
-      assertTrue(Files.isRegularFile(projectDir.resolve("test-project/build/dlls/test-project-test.dll")))
-    } catch (e) {
-      e.printStackTrace()
-    }
+    plugin.compileTest()
+    assertTrue(Files.isRegularFile(projectDir.resolve("test-project/build/dlls/test-project.Test.dll")))
 
-//    plugin.document()
-//    assertTrue(Files.isRegularFile(projectDir.resolve("test-project/build/doc/index.html")))
+    plugin.updateDocs()
+    assertTrue(Files.isRegularFile(projectDir.resolve("test-project/build/docs/index.xml")))
+
+    plugin.exportDocs()
+    assertTrue(Files.isRegularFile(projectDir.resolve("test-project/build/docs-export/index.html")))
+  }
+
+  @Test
+  public void sdkVersion() throws Exception {
+    CSharpPlugin plugin = new CSharpPlugin(project, new RuntimeConfiguration(), output)
+    plugin.settings.sdkVersion = "4.0"
+    plugin.settings.references = ["lib/nlog-2.1.0.dll", "System.Web"]
+    plugin.settings.compilerExecutable = "mcs"
+    plugin.settings.setSDKVersionArgument = true
+    plugin.layout.docDirectory = Paths.get("build/docs")
+    plugin.layout.docExportDirectory = Paths.get("build/docs-export")
+
+    plugin.clean()
+    assertFalse(Files.isDirectory(projectDir.resolve("test-project/build")))
+
+    plugin.compileMain()
+    assertTrue(Files.isRegularFile(projectDir.resolve("test-project/build/dlls/test-project.dll")))
+
+    plugin.compileTest()
+    assertTrue(Files.isRegularFile(projectDir.resolve("test-project/build/dlls/test-project.Test.dll")))
+
+    plugin.updateDocs()
+    assertTrue(Files.isRegularFile(projectDir.resolve("test-project/build/docs/index.xml")))
+
+    plugin.exportDocs()
+    assertTrue(Files.isRegularFile(projectDir.resolve("test-project/build/docs-export/index.html")))
   }
 }

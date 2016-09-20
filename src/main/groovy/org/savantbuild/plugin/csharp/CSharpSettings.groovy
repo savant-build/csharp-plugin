@@ -20,11 +20,6 @@ package org.savantbuild.plugin.csharp
  */
 class CSharpSettings {
   /**
-   * A list of additional references to include when compiling.
-   */
-  List<String> additionalReferences = []
-
-  /**
    * The name of the compiler executable. This defaults to <code>mcs</code> because we assume you are using Mono.
    */
   String compilerExecutable = "mcs"
@@ -40,9 +35,14 @@ class CSharpSettings {
   String compilerType = "library"
 
   /**
-   * Additional JavaDoc arguments. This are included when javadoc is invoked. Defaults to {@code ""}.
+   * Additional MDoc arguments. This are included when mdoc is invoked. Defaults to {@code ""}.
    */
   String docArguments = ""
+
+  /**
+   * The name of the doc executable. This defaults to <code>mdoc</code> because we assume you are using Mono.
+   */
+  String docExecutable = "mdoc"
 
   /**
    * Configures the C# language version to use for compilation. This will depend on the compiler you are using, but for
@@ -51,9 +51,14 @@ class CSharpSettings {
   String languageVersion
 
   /**
-   * Additional directories that contain JAR files to include in the compilation classpath. Defaults to {@code []}.
+   * Additional directories to include in the compilation as lib parameters. Defaults to {@code []}.
    */
   List<Object> libraryDirectories = []
+
+  /**
+   * Additional DLL files to include in the compilation as references. Defaults to {@code []}.
+   */
+  List<Object> references = []
 
   /**
    * The list of dependencies to include on the classpath when javac is called to compile the main Java source files.
@@ -76,6 +81,12 @@ class CSharpSettings {
    * ~/.savant/plugins/org.savantbuild.plugin.csharp.properties file.
    */
   String sdkVersion
+
+  /**
+   * Determines if the SDK version argument is sent to the compiler. The version that is used is the value of the
+   * <code>sdkVersion</code> setting.
+   */
+  boolean setSDKVersionArgument = false
 
   /**
    * The list of dependencies to include on the classpath when java is called to compile the test Java source files.

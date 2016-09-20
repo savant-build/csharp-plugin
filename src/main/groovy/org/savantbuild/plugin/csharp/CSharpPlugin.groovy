@@ -19,11 +19,9 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.function.Predicate
-import java.util.stream.Collectors
 
 import org.savantbuild.dep.domain.ArtifactID
 import org.savantbuild.domain.Project
-import org.savantbuild.io.FileSet
 import org.savantbuild.io.FileTools
 import org.savantbuild.lang.Classpath
 import org.savantbuild.output.Output
@@ -36,23 +34,28 @@ import org.savantbuild.runtime.RuntimeConfiguration
  * The CSharp plugin. The public methods on this class define the features of the plugin.
  */
 class CSharpPlugin extends BaseGroovyPlugin {
-  public static
+  public
   final String ERROR_MESSAGE = "You must create the file [~/.savant/plugins/org.savantbuild.plugin.csharp.properties] " +
       "that contains the system configuration for the Mono/C# system. This file should include the location of the C# compiler " +
-      "(msc or csc) by Language version. These properties look like this:\n\n" +
-      "  2.0=/Library/Frameworks/Mono.framework/Versions/4.4.2\n"
-
-  CSharpLayout layout = new CSharpLayout()
-
-  CSharpSettings settings = new CSharpSettings()
-
-  Properties properties
+      "(msc or csc) by Platform version. These properties look like this:\n\n" +
+      "  2.0=/Library/Frameworks/Mono.framework/Versions/2.6.7\n" +
+      "  4.0=/Library/Frameworks/Mono.framework/Versions/4.4.2\n"
 
   Path compilerPath
 
+  DependencyPlugin dependencyPlugin
+
   FilePlugin filePlugin
 
-  DependencyPlugin dependencyPlugin
+  CSharpLayout layout = new CSharpLayout()
+
+  Path docPath
+
+  Path monoHome
+
+  Properties properties
+
+  CSharpSettings settings = new CSharpSettings()
 
   CSharpPlugin(Project project, RuntimeConfiguration runtimeConfiguration, Output output) {
     super(project, runtimeConfiguration, output)
@@ -101,7 +104,7 @@ class CSharpPlugin extends BaseGroovyPlugin {
    * </pre>
    */
   void compileMain() {
-    compileInternal(layout.mainSourceDirectory, layout.dllOutputDirectory, layout.mainResourceDirectory, project.name + ".dll", settings.mainDependencies)
+    compileInternal(layout.mainSourceDirectory, layout.dllOutputDirectory, layout.mainResourceDirectory, "${project.name}.dll", settings.mainDependencies)
   }
 
   /**
@@ -114,31 +117,25 @@ class CSharpPlugin extends BaseGroovyPlugin {
    * </pre>
    */
   void compileTest() {
-    compileInternal(layout.testSourceDirectory, layout.dllOutputDirectory, layout.testResourceDirectory, project.name + "-test.dll", settings.testDependencies, layout.dllOutputDirectory.resolve("${project.name}.dll"))
+    compileInternal(layout.testSourceDirectory, layout.dllOutputDirectory, layout.testResourceDirectory, "${project.name}.Test.dll", settings.testDependencies, layout.dllOutputDirectory.resolve("${project.name}.dll"))
   }
 
   /**
-   * Creates the project's Doc. This executes the C# compiler command and outputs the docs to the {@code layout.docDirectory}
+   * Exports the mdoc files to HTML.
    * <p>
    * Here is an example of calling this method:
    * <p>
    * <pre>
-   *   csharp.document()
+   *   csharp.exportDocs()
    * </pre>
    */
-  void document() {
+  void exportDocs() {
     initialize()
 
-    output.infoln("Generating JavaDoc to [%s]", layout.docDirectory)
+    output.infoln("Exporting MDoc to [%s]", layout.docExportDirectory)
 
-    FileSet fileSet = new FileSet(project.directory.resolve(layout.mainSourceDirectory))
-    Set<String> packages = fileSet.toFileInfos()
-        .stream()
-        .map({ info -> info.relative.getParent().toString().replace("/", ".") })
-        .collect(Collectors.toSet())
-
-    String command = "${javaDocPath} ${classpath(settings.mainDependencies, settings.libraryDirectories)} ${settings.docArguments} -sourcepath ${layout.mainSourceDirectory} -d ${layout.docDirectory} ${packages.join(" ")}"
-    output.debugln("Executing JavaDoc command [%s]", command)
+    String command = "${docPath} export-html -o ${layout.docExportDirectory} ${layout.docDirectory}"
+    output.debugln("Executing MDoc command [%s]", command)
 
     Process process = command.execute([], project.directory.toFile())
     process.consumeProcessOutput((Appendable) System.out, System.err)
@@ -146,7 +143,35 @@ class CSharpPlugin extends BaseGroovyPlugin {
 
     int exitCode = process.exitValue()
     if (exitCode != 0) {
-      fail("JavaDoc failed")
+      fail("MDoc export failed")
+    }
+  }
+
+  /**
+   * Creates or updates the project's XML mdoc files. This executes the mdoc command and outputs the XML files to the
+   * {@code layout.docDirectory}
+   * <p>
+   * Here is an example of calling this method:
+   * <p>
+   * <pre>
+   *   csharp.updateDocs()
+   * </pre>
+   */
+  void updateDocs() {
+    initialize()
+
+    output.infoln("Updating MDoc to [%s]", layout.docDirectory)
+
+    String command = "${docPath} update -o ${layout.docDirectory} ${layout.dllOutputDirectory}/${project.name}.dll"
+    output.debugln("Executing MDoc command [%s]", command)
+
+    Process process = command.execute([], project.directory.toFile())
+    process.consumeProcessOutput((Appendable) System.out, System.err)
+    process.waitFor()
+
+    int exitCode = process.exitValue()
+    if (exitCode != 0) {
+      fail("MDoc update failed")
     }
   }
 
@@ -184,13 +209,20 @@ class CSharpPlugin extends BaseGroovyPlugin {
       }
 
       output.infoln("Compiling [${filesToCompile}] C# classes from [${sourceDirectory}]")
+    } else {
+      output.infoln("Compiling all the C# classes from [${sourceDirectory}]")
     }
 
-    String command = "${compilerPath} ${settings.additionalReferences.empty ? "" : "-r:${settings.additionalReferences.join(" -r:")}"} ${settings.languageVersion != null ? "-langversion:${settings.languageVersion}" : ""} ${settings.compilerArguments} ${libraryArguments(dependencies, settings.libraryDirectories, additionalLibraries)} ${resourceArguments(resourceDirectory)} -t:${settings.compilerType} -out:${dllDirectory.resolve(dllName)} -recurse:${sourceDirectory}/*.cs"
+    String languageVersion = settings.languageVersion != null ? "-langversion:${settings.languageVersion}" : ""
+    String libraryArguments = libraryArguments(settings.libraryDirectories)
+    String referenceArguments = referenceArguments(dependencies, settings.references, additionalLibraries)
+    String resourceArguments = resourceArguments(resourceDirectory)
+    String sdkArgument = settings.setSDKVersionArgument ? "-sdk:${settings.sdkVersion}" : ""
+    String command = "${compilerPath} ${languageVersion} ${sdkArgument} ${settings.compilerArguments} ${libraryArguments} ${referenceArguments} ${resourceArguments} -t:${settings.compilerType} -out:${dllDirectory.resolve(dllName)} -recurse:${sourceDirectory}/*.cs"
     output.debugln("Executing compiler command [%s]", command)
 
     Files.createDirectories(resolvedDLLDir)
-    Process process = command.execute(null, project.directory.toFile())
+    Process process = command.execute([], project.directory.toFile())
     process.consumeProcessOutput((Appendable) System.out, System.err)
     process.waitFor()
 
@@ -200,8 +232,8 @@ class CSharpPlugin extends BaseGroovyPlugin {
     }
   }
 
-  private String libraryArguments(List<Map<String, Object>> dependenciesList, List<Object> libraryDirectories, Path... additionalPaths) {
-    List<Path> additionalDLLs = new ArrayList<>()
+  private String libraryArguments(List<Object> libraryDirectories) {
+    List<Path> additionalDirectories = new ArrayList<>()
     if (libraryDirectories != null) {
       libraryDirectories.each { path ->
         Path dir = project.directory.resolve(FileTools.toPath(path))
@@ -209,7 +241,25 @@ class CSharpPlugin extends BaseGroovyPlugin {
           return
         }
 
-        Files.list(dir).filter(FileTools.extensionFilter(".dll")).forEach { file -> additionalDLLs.add(file.toAbsolutePath()) }
+        additionalDirectories.add(dir.toAbsolutePath())
+      }
+    }
+
+    StringBuilder arguments = new StringBuilder()
+    additionalDirectories.each { p -> arguments.append(" -lib:").append(p) }
+    return arguments;
+  }
+
+  private String referenceArguments(List<Map<String, Object>> dependenciesList, List<Object> references, Path... additionalPaths) {
+    List<Path> additionalDLLs = new ArrayList<>()
+    if (references != null) {
+      references.each { path ->
+        Path file = project.directory.resolve(FileTools.toPath(path))
+        if (!Files.isRegularFile(file)) {
+          return
+        }
+
+        additionalDLLs.add(file.toAbsolutePath())
       }
     }
 
@@ -246,20 +296,28 @@ class CSharpPlugin extends BaseGroovyPlugin {
 
     if (!settings.sdkVersion) {
       fail("You must configure the SDK/Mono/.Net version to use with the settings object. It will look something like this:\n\n" +
-          "  csharp.settings.sdkVersion=\"2.6\"")
+          "  csharp.settings.sdkVersion=\"2.0\"")
     }
 
-    String csharpHome = properties.getProperty(settings.sdkVersion)
-    if (!csharpHome) {
+    monoHome = Paths.get(properties.getProperty(settings.sdkVersion))
+    if (!monoHome) {
       fail("No SDK/Mono/.Net platform is configured for version [%s].\n\n[%s]", settings.sdkVersion, ERROR_MESSAGE)
     }
 
-    compilerPath = Paths.get(csharpHome, "bin/${settings.compilerExecutable}")
+    compilerPath = monoHome.resolve("bin/${settings.compilerExecutable}")
     if (!Files.isRegularFile(compilerPath)) {
       fail("The ${settings.compilerExecutable} compiler [%s] does not exist.", compilerPath.toAbsolutePath())
     }
     if (!Files.isExecutable(compilerPath)) {
       fail("The ${settings.compilerExecutable} compiler [%s] is not executable.", compilerPath.toAbsolutePath())
+    }
+
+    docPath = monoHome.resolve("bin/${settings.docExecutable}")
+    if (!Files.isRegularFile(docPath)) {
+      fail("The ${settings.docExecutable} doc program [%s] does not exist.", docPath.toAbsolutePath())
+    }
+    if (!Files.isExecutable(docPath)) {
+      fail("The ${settings.docExecutable} doc program [%s] is not executable.", docPath.toAbsolutePath())
     }
   }
 }
