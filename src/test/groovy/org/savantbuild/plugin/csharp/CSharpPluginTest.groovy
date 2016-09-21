@@ -101,9 +101,11 @@ class CSharpPluginTest {
 
     plugin.compileMain()
     assertTrue(Files.isRegularFile(projectDir.resolve("test-project/build/dlls/test-project.dll")))
+    assertTrue(Files.isRegularFile(projectDir.resolve("test-project/build/dlls/test-project-src.zip")))
 
     plugin.compileTest()
     assertTrue(Files.isRegularFile(projectDir.resolve("test-project/build/dlls/test-project.Test.dll")))
+    assertTrue(Files.isRegularFile(projectDir.resolve("test-project/build/dlls/test-project.Test-src.zip")))
 
     plugin.updateDocs()
     assertTrue(Files.isRegularFile(projectDir.resolve("test-project/build/docs/index.xml")))

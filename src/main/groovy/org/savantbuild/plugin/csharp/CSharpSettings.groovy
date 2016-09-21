@@ -56,11 +56,6 @@ class CSharpSettings {
   List<Object> libraryDirectories = []
 
   /**
-   * Additional DLL files to include in the compilation as references. Defaults to {@code []}.
-   */
-  List<Object> references = []
-
-  /**
    * The list of dependencies to include on the classpath when javac is called to compile the main Java source files.
    * This defaults to:
    * <p>
@@ -75,6 +70,11 @@ class CSharpSettings {
       [group: "compile", transitive: false, fetchSource: false],
       [group: "provided", transitive: false, fetchSource: false]
   ]
+
+  /**
+   * Additional DLL files to include in the compilation as references. Defaults to {@code []}.
+   */
+  List<Object> references = []
 
   /**
    * Configures the SDK/Mono/.Net version to use for compilation. This version must be defined in the

@@ -105,6 +105,7 @@ class CSharpPlugin extends BaseGroovyPlugin {
    */
   void compileMain() {
     compileInternal(layout.mainSourceDirectory, layout.dllOutputDirectory, layout.mainResourceDirectory, "${project.name}.dll", settings.mainDependencies)
+    zipSource("${project.name}-src.zip", layout.mainSourceDirectory, layout.mainResourceDirectory)
   }
 
   /**
@@ -118,6 +119,7 @@ class CSharpPlugin extends BaseGroovyPlugin {
    */
   void compileTest() {
     compileInternal(layout.testSourceDirectory, layout.dllOutputDirectory, layout.testResourceDirectory, "${project.name}.Test.dll", settings.testDependencies, layout.dllOutputDirectory.resolve("${project.name}.dll"))
+    zipSource("${project.name}.Test-src.zip", layout.testSourceDirectory, layout.testResourceDirectory)
   }
 
   /**
@@ -251,26 +253,14 @@ class CSharpPlugin extends BaseGroovyPlugin {
   }
 
   private String referenceArguments(List<Map<String, Object>> dependenciesList, List<Object> references, Path... additionalPaths) {
-    List<Path> additionalDLLs = new ArrayList<>()
-    if (references != null) {
-      references.each { path ->
-        Path file = project.directory.resolve(FileTools.toPath(path))
-        if (!Files.isRegularFile(file)) {
-          return
-        }
-
-        additionalDLLs.add(file.toAbsolutePath())
-      }
-    }
-
     Classpath classpath = dependencyPlugin.classpath {
       dependenciesList.each { deps -> dependencies(deps) }
       additionalPaths.each { additionalPath -> path(location: additionalPath) }
-      additionalDLLs.each { additionalDLL -> path(location: additionalDLL) }
     }
 
     StringBuilder arguments = new StringBuilder()
     classpath.paths.each { p -> arguments.append(" -r:").append(p) }
+    references.each { r -> arguments.append(" -r:").append(r) }
     return arguments;
   }
 
@@ -318,6 +308,18 @@ class CSharpPlugin extends BaseGroovyPlugin {
     }
     if (!Files.isExecutable(docPath)) {
       fail("The ${settings.docExecutable} doc program [%s] is not executable.", docPath.toAbsolutePath())
+    }
+  }
+
+  private void zipSource(String zipFile, Path... directories) {
+    Path zipFilePath = layout.dllOutputDirectory.resolve(zipFile)
+
+    output.infoln("Creating source ZIP [%s]", zipFilePath)
+
+    filePlugin.zip(file: zipFilePath) {
+      directories.each { dir ->
+        optionalFileSet(dir: dir)
+      }
     }
   }
 }
