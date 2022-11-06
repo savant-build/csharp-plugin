@@ -23,7 +23,7 @@ import org.savantbuild.dep.domain.Artifact
 import org.savantbuild.dep.domain.Dependencies
 import org.savantbuild.dep.domain.DependencyGroup
 import org.savantbuild.dep.domain.License
-import org.savantbuild.dep.domain.Version
+import Version
 import org.savantbuild.dep.workflow.FetchWorkflow
 import org.savantbuild.dep.workflow.PublishWorkflow
 import org.savantbuild.dep.workflow.Workflow
@@ -75,7 +75,7 @@ class CSharpPluginTest {
     project.version = new Version("1.0")
     project.licenses.put(License.ApacheV2_0, null)
 
-    project.dependencies = new Dependencies(new DependencyGroup("test-compile", false, new Artifact("org.nunit:nunit.framework:2.6.3:dll", false)))
+    project.dependencies = new Dependencies(new DependencyGroup("test-compile", false, new Artifact("org.nunit:nunit.framework:2.6.3:dll")))
     project.workflow = new Workflow(
         new FetchWorkflow(output,
             new CacheProcess(output, projectDir.resolve("build/cache").toString()),
